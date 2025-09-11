@@ -222,8 +222,9 @@ Qed.
 *)
 Lemma modus_ponens (P Q : iProp Σ) : P -∗ (P -∗ Q) -∗ Q.
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros "Hp Hwand".
+  iApply ("Hwand" with "Hp").
+Qed.
 
 (**
   Just as with Coq tactics, Iris allows nesting of introduction
@@ -236,8 +237,13 @@ Admitted.
 *)
 Lemma sep_assoc_1 (P Q R : iProp Σ) : P ∗ Q ∗ R ⊢ (P ∗ Q) ∗ R.
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros "(Hp & Hq & Hr)".
+  iSplitR "Hr".
+  - iSplitL "Hp".
+    + iApply "Hp".
+    + iApply "Hq".
+  - iApply "Hr".
+Qed.
 
 (**
   Manually splitting a separation can become tedious. To alleviate this,
@@ -289,8 +295,11 @@ Qed.
 Lemma wand_adj (P Q R : iProp Σ) : (P -∗ Q -∗ R) ⊣⊢ (P ∗ Q -∗ R).
 Proof.
   iSplit.
-  (* exercise *)
-Admitted.
+  - iIntros "H (Hp & Hq)".
+    iApply ("H" with "Hp Hq").
+  - iIntros "H Hp Hq".
+    iApply ("H" with "[Hp Hq]"); iFrame.
+Qed.
 
 (**
   Disjunctions [∨] are treated just like disjunctions in Coq. The
@@ -301,8 +310,10 @@ Admitted.
 *)
 Lemma or_comm (P Q : iProp Σ) : Q ∨ P ⊢ P ∨ Q.
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros "[Hq | Hp]".
+  - iRight; iApply "Hq".
+  - iLeft; iApply "Hp".
+Qed.
 
 (**
   We can even prove the usual elimination rule for or-elimination
@@ -311,8 +322,10 @@ Admitted.
 *)
 Lemma or_elim (P Q R : iProp Σ) : (P -∗ R) -∗ (Q -∗ R) -∗ P ∨ Q -∗ R.
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros "Hpr Hqr [Hp | Hq]".
+  - iApply ("Hpr" with "Hp").
+  - iApply ("Hqr" with "Hq").
+Qed.
 
 (**
   Separating conjunction distributes over disjunction (for the same
@@ -320,7 +333,13 @@ Admitted.
 *)
 Lemma sep_or_distr (P Q R : iProp Σ) : P ∗ (Q ∨ R) ⊣⊢ P ∗ Q ∨ P ∗ R.
 Proof.
-  (* exercise *)
+  iSplit.
+  - iIntros "(HP & [HQ | HR])".
+    + iLeft; iFrame.
+    + iRight; iFrame.
+  - iIntros "[(HP & HQ) | (HP & HR)]".
+    + iFrame.
+    + iFrame.
 Admitted.
 
 (**
@@ -337,8 +356,9 @@ Proof.
   - iIntros "(HP & %x & HΦ)".
     iExists x.
     iFrame.
-  - (* exercise *)
-Admitted.
+  - iIntros "[%x (HP & HΦ)]".
+    iFrame.
+Qed.
 
 (**
   Likewise, forall quantification works almost as in Coq. To introduce
@@ -350,7 +370,8 @@ Admitted.
 Lemma sep_all_distr {A} (P Q : A → iProp Σ) :
   (∀ x, P x) ∗ (∀ x, Q x) -∗ (∀ x, P x ∗ Q x).
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros "[H1 H2] %x".
+  iSplitL "H1". iApply ("H1" $! x). iApply ("H2" $! x).
+Qed.
 
 End proofs.
