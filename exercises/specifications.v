@@ -158,8 +158,48 @@ Example lambda : expr :=
 Lemma lambda_spec : ⊢ WP lambda {{ v, ⌜v = #20⌝ }}.
 Proof.
   rewrite /lambda.
-  (* exercise *)
-Admitted.
+  (**
+    ⊢ WP let: "add5" := λ: "x", "x" + #5 in
+         let: "double" := λ: "x", "x" * #2 in
+         let: "compose" := λ: "f" "g" "x", "g" ("f" "x") in
+         "compose" "add5" "double" #5
+      {{ v, ⌜v = #20⌝ }}
+  *)
+  wp_pure.
+  (**
+    WP let: "add5" := λ: "x", "x" + #5 in
+       let: "double" := λ: "x", "x" * #2 in
+       let: "compose" := λ: "f" "g" "x", "g" ("f" "x") in
+       "compose" "add5" "double" #5
+    {{ v, ⌜v = #20⌝ }}
+  *)
+  wp_let.
+  (**
+    WP let: "double" := λ: "x", "x" * #2 in
+       let: "compose" := λ: "f" "g" "x", "g" ("f" "x") in
+       "compose" (λ: "x", "x" + #5) "double" #5
+    {{ v, ⌜v = #20⌝ }}
+  *)
+  wp_pure.
+  (**
+    WP let: "double" := (λ: "x", "x" * #2)%V in
+       let: "compose" := λ: "f" "g" "x", "g" ("f" "x") in
+       "compose" (λ: "x", "x" + #5)%V "double" #5
+    {{ v, ⌜v = #20⌝ }}
+  *)
+  wp_let.
+  wp_pure.
+  wp_let.
+  (**
+    WP (λ: "f" "g" "x", "g" ("f" "x"))%V (λ: "x", "x" + #5)%V
+       (λ: "x", "x" * #2)%V #5
+    {{ v, ⌜v = #20⌝ }}
+  *)
+  wp_lam; wp_pure; wp_lam; wp_let; wp_lam; wp_op; wp_lam; wp_op.
+  iModIntro.
+  iPureIntro.
+  done.
+Qed.
 
 (* ================================================================= *)
 (** ** Resources *)
@@ -297,8 +337,16 @@ Proof.
   wp_cmpxchg_fail.
   wp_proj.
   wp_if.
-  (* exercise *)
-Admitted.
+  wp_load.
+  wp_let.
+  wp_cmpxchg_suc.
+  wp_proj.
+  wp_if.
+  wp_load.
+  wp_let.
+  wp_pure.
+  done.
+Qed.
 
 (**
   We finish this section with a final remark about the points-to
@@ -566,7 +614,7 @@ Lemma par_client_spec :
     par_client
   {{{ l1 l2 life, RET (#l1, #l2, #life); l1 ↦ #21 ∗ l2 ↦ #2 ∗ ⌜life = 42⌝ }}}.
 Proof.
-  iIntros (Φ _) "HΦ".
+  iIntros (Φ) "_ HΦ".
   rewrite /par_client.
   (**
     The program starts by creating two fresh locations, [l1] and [l2].
@@ -635,6 +683,8 @@ Definition race_spec (l : loc) (v : val) :=
 (**
   Could we prove this specification similarly to how we proved
   [par_client]?
+
+  No, [wp_par] lemma requires splitting the resources between the two threads.
 *)
 
 End specifications.
