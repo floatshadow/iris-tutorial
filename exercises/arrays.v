@@ -1,5 +1,6 @@
 From iris.heap_lang Require Import lang proofmode notation.
-
+Require Import stdpp.list.
+Require Import stdpp.numbers.
 (* ################################################################# *)
 (** * Arrays *)
 
@@ -133,8 +134,22 @@ Lemma inc_spec a l :
     inc #a #(length l)
   {{{RET #(); a ↦∗ ((λ i : Z, #(i + 1)) <$> l)}}}.
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros (Φ) "Ha HΦ".
+  iLöb as "IH" forall (a l).
+  destruct l as [|v l]; simpl.
+  - wp_rec. wp_pures.
+    iModIntro.
+    by iApply "HΦ".
+  - wp_rec. wp_pures.
+    rewrite !array_cons.
+    iDestruct "Ha" as "[Ha Ha1]".
+    wp_load. wp_store. wp_pures.
+    rewrite Nat2Z.inj_succ Z.sub_1_r Z.pred_succ.
+    wp_apply ("IH" with "Ha1").
+    iIntros "Ha1".
+    iApply "HΦ".
+    by iFrame.
+Qed.
 
 (* ================================================================= *)
 (** ** Reverse *)
@@ -163,9 +178,44 @@ Definition reverse : val :=
 Lemma reverse_spec a l :
   {{{a ↦∗ l}}}
     reverse #a #(length l)
-  {{{RET #(); a ↦∗ rev l}}}.
+  {{{RET #(); a ↦∗ list.reverse l}}}.
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros (Φ) "Ha HΦ".
+  iLöb as "IH" forall (a l).
+  destruct l as [|x l]; simpl.
+  - wp_rec. wp_pures.
+    iModIntro.
+    by iApply "HΦ".
+  - wp_rec. wp_pures.
+    destruct l as [|y l] using rev_ind; simpl.
+    + wp_pures.
+      iModIntro.
+      by iApply "HΦ".
+    + (** Split the array at front and back. *)
+      rewrite !array_cons.
+      iDestruct "Ha" as "[Hx Ha]".
+      rewrite !array_app.
+      iDestruct "Ha" as "[Ha Hy]".
+      rewrite !array_singleton.
+      wp_pures.
+      rewrite bool_decide_eq_false_2; last first.
+      { destruct l as [|v l]; simpl; lia. }
+      wp_load. wp_pures.
+      rewrite Nat2Z.inj_succ Z.sub_1_r Z.pred_succ.
+      rewrite length_app; simpl.
+      rewrite Nat2Z.inj_add Z.add_comm -Loc.add_assoc.
+      wp_load. wp_store. wp_store.
+      rewrite Z.add_1_l. wp_pures.
+      assert (∀ n : Z, ((Z.succ (Z.succ n)) - 2)%Z = n) as ->.
+      { intro n. lia. }
+      iApply ("IH" with "Ha").
+      iModIntro.
+      iIntros "Ha'".
+      iApply "HΦ".
+      rewrite !reverse_cons !reverse_app !array_app !reverse_singleton !array_singleton !length_app !length_cons !length_reverse.
+      simpl.
+      rewrite -(Nat.add_1_l (length l)) Loc.add_assoc Nat2Z.inj_add.
+      by iFrame.
+Qed.
 
 End proofs.
