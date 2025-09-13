@@ -65,8 +65,13 @@ Proof.
     wp_pures.
     by iApply "HΦ".
   - (* Induction step: xs = x :: xs' *)
-    (* exercise *)
-Admitted.
+    iIntros (l Φ) "Hl HΦ".
+    iDestruct "Hl" as (hd l') "[-> [Hhd Hl]]".
+    wp_rec. wp_load. wp_proj. wp_load. wp_proj. wp_store.
+    wp_apply (IH with "Hl"). iIntros "Hl'".
+    iApply "HΦ".
+    iExists hd, l'; by iFrame.
+Qed.
 
 (**
   The append function recursively descends [l1], updating the links.
@@ -97,8 +102,18 @@ Lemma append_spec (l1 l2 : val) (xs ys : list val) :
 Proof.
   revert ys l1 l2.
   induction xs as [| x xs' IH]; simpl.
-  (* exercise *)
-Admitted.
+  - iIntros (ys l1 l2 Φ) "[-> Hl2] HΦ".
+    wp_rec. wp_let. wp_match.
+    by iApply "HΦ".
+  - iIntros (ys l1 l2 Φ) "[Hl1 Hl2] HΦ".
+    iDestruct "Hl1" as (hd l1') "[-> [Hhd Hl1']]".
+    wp_rec. wp_let. wp_match. do 2 wp_load; wp_proj.
+    wp_let.
+    wp_apply (IH with "[$Hl1' $Hl2]"). iIntros (l) "Hl".
+    wp_store. wp_pures.
+    iApply "HΦ".
+    iExists hd, l. by iFrame.
+Qed. 
 
 (**
   We will implement reverse using a helper function called
@@ -130,8 +145,19 @@ Lemma reverse_append_spec (l acc : val) (xs ys : list val) :
 Proof.
   revert l acc ys.
   induction xs as [| x xs' IH]; simpl.
-  (* exercise *)
-Admitted.
+  - iIntros (l acc ys Φ) "[-> Hacc] HΦ".
+    wp_rec. wp_let. wp_match.
+    by iApply "HΦ".
+  - iIntros (l acc ys Φ) "[Hl Hacc] HΦ".
+    iDestruct "Hl" as (hd l') "[-> [Hhd Hl']]".
+    wp_rec.  wp_let. wp_match. do 2 wp_load; wp_proj.
+    wp_store. wp_pures.
+    wp_apply (IH l' (SOMEV (#hd)) (x :: ys) with "[Hl' Hhd Hacc]").
+    { iFrame "Hl'". by iFrame. }
+    iIntros (v) "Hv".
+    rewrite -app_assoc; simpl.
+    by iApply "HΦ".
+Qed.
 
 (**
   Now, we use the specification of [reverse_append] to prove the
@@ -142,8 +168,15 @@ Lemma reverse_spec (l : val) (xs : list val) :
     reverse l
   {{{ v, RET v; isList v (rev xs) }}}.
 Proof.
-  (* exercise *)
-Admitted.
+  iIntros (Φ) "Hl HΦ".
+  rewrite /reverse.
+  wp_pures.
+  wp_apply (reverse_append_spec l NONEV xs [] with "[Hl]").
+  { iFrame. by iPureIntro. }
+  iIntros (v) "Hv".
+  rewrite app_nil_r.
+  by iApply "HΦ".
+Qed.
 
 (**
   The specifications thus far have been rather straightforward. Now we
@@ -197,11 +230,26 @@ Lemma fold_right_spec P I (f a l : val) xs :
     fold_right f a l
   {{{ r, RET r; isList l xs ∗ I xs r}}}.
 Proof.
-  revert a l.
-  induction xs as [|x xs IHxs].
-  all: simpl.
-  (* exercise *)
-Admitted.
+  iIntros (Φ) "(Hl & Hxs & HIa & #Hf) HΦ".
+  iLöb as "IH" forall (l xs Φ).
+  destruct xs as [| x xs]; simpl; wp_rec; wp_pures.
+  - iDestruct "Hl" as %->. wp_match. iApply "HΦ".
+    by iFrame.
+  - iDestruct "Hl" as (hd l') "[-> [Hhd Hl']]".
+    iDestruct "Hxs" as "[Hx Hxs]".
+    wp_match. do 2 wp_load; wp_proj.
+    wp_pures.
+    (* Handle [WP f x (fold_right f a l') {{ v, Φ v }}] *)
+    wp_apply ("IH" with "Hl' Hxs HIa").
+    iIntros (r) "(Hl' & Hxs)".
+    iApply ("Hf" with "[$Hx $Hxs]").
+    iModIntro.
+    iIntros (r') "Hxs'".
+    iApply "HΦ".
+    iFrame "Hxs'".
+    iExists hd, l'.
+    by iFrame.
+Qed.
 
 (**
   We can now sum over a list simply by folding an addition function over
